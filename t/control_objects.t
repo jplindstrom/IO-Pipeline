@@ -32,14 +32,15 @@ def
 
 # ppool
 {
-  my @pool;
+  my @items;
   my $out;
   my $pipe = input_fh(\$source)
     | pmap  { $_ }
     | ppool(
-        sub { },
-        sub { push(@pool,$_);     return ();    },
-        sub { @pool = sort @pool; return @pool; }
+          # receive every item, put it in the pool
+        sub { push(@items,$_); return (); },
+          # last, release the sorted pool back into stream
+        sub { @items = sort @items; },
       )
     | psink { $out .= $_ };
 
