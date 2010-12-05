@@ -6,6 +6,12 @@ use Scalar::Util qw(blessed);
 
 use IO::Pipeline;
 
+sub input_fh {
+  my ($string_ref) = @_;
+  open my $in, '<', $string_ref;
+  return $in;
+}
+
 # Regression test: make sure control objects don't interfere
 my $source = q{abc
 xyz
@@ -13,12 +19,6 @@ xyz
 def
 456
 };
-
-sub input_fh {
-  my ($string_ref) = @_;
-  open my $in, '<', $string_ref;
-  return $in;
-}
 
 {
   my $out;
@@ -30,7 +30,6 @@ sub input_fh {
   is($out, $source, 'No control objects in the output');
 }
 
-
 # ppool
 {
   my @pool;
@@ -38,7 +37,7 @@ sub input_fh {
   my $pipe = input_fh(\$source)
     | pmap  { $_ }
     | ppool {
-      if(IO::Pipeline->_isa_control($_)) {
+      if(IO::Pipeline->isa_control($_)) {
         if($_->isa("IO::Pipeline::Control::EOF")) {
           @pool = sort @pool;
           return @pool;
@@ -55,10 +54,5 @@ sub input_fh {
   is($out, $sorted_source, 'Output is sorted in the pool');
 }
 
-
-
-
-
-# psort
 
 
