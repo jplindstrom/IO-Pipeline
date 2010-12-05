@@ -37,13 +37,17 @@ sub IO::Pipeline::CodeSink::print {
   }
 }
 
+sub _isa_control {
+  return blessed($_[1]) && $_[1]->isa("IO::Pipeline::Control");
+}
+
 sub from_code_map {
   my ($class, $map) = @_;
   bless(
     {
       map => [
         sub {
-          blessed($_) && $_->isa("IO::Pipeline::Control")
+          $class->_isa_control($_)
             ? $_
             : $map->($_)
           }
@@ -57,7 +61,7 @@ sub from_code_grep {
   my ($class, $grep) = @_;
   $class->from_code_map(
     sub {
-      if(blessed($_) && $_->isa("IO::Pipeline::Control")) {
+      if($class->_isa_control($_)) {
         $_;
       }
       else {
@@ -119,22 +123,16 @@ sub process_line {
     @lines = map $map->($_), @lines;
     return unless @lines;
   }
-  @lines = grep { ! ( blessed($_) && $_->isa("IO::Pipeline::Control") ) } @lines;
+  @lines = grep { ! $self->_isa_control($_) } @lines;
   $self->{sink}->print( @lines) if(@lines);
 }
 
 package IO::Pipeline::Control;
-
 sub new { bless({}, shift) }
-
-use overload
-        q{""} => sub { "" },
-  fallback => 1;
-
+use overload q{""} => sub { "" }, fallback => 1;
 
 package IO::Pipeline::Control::BOF;
 our @ISA = qw(IO::Pipeline::Control);
-
 
 package IO::Pipeline::Control::EOF;
 our @ISA = qw(IO::Pipeline::Control);
