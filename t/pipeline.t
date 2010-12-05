@@ -15,13 +15,14 @@ my $source = <<'END';
 END
 
 sub input_fh {
-  open my $in, '<', \$source;
+  my ($string_ref) = @_;
+  open my $in, '<', $string_ref;
   return $in;
 }
 
 my $out;
 
-my $pipe = input_fh
+my $pipe = input_fh(\$source)
   | pmap { [ /^(\S+) (\S+) (.*)$/ ] }
   | pgrep { $_->[2] =~ /rejected|Completed/ }
   | pmap { [ @{$_}[0, 1], $_->[2] =~ /rejected/ ? 'Rejected' : 'Completed' ] }
@@ -35,3 +36,25 @@ is($out, <<'END', 'Output ok');
 2010-03-21 16:28:51 Rejected
 2010-03-21 16:35:59 Rejected
 END
+
+
+# Empty stream
+{
+  my $out = undef;
+  my $empty_pipe = input_fh(\"")
+    | psink { $out .= $_ };
+  is($out, undef, "Empty stream didn't produce any output");
+}
+
+# grep filtered out all, results in empty stream
+{
+  my $source = q{abc
+def
+};
+  my $out = undef;
+  my $empty_pipe = input_fh(\$source)
+    | pgrep { 0 }
+    | psink { $out .= $_ };
+  is($out, undef, "Stream with all filtered out didn't produce any output");
+}
+
