@@ -15,13 +15,14 @@ my $source = <<'END';
 END
 
 sub input_fh {
-  open my $in, '<', \$source;
+  my ($string_ref) = @_;
+  open my $in, '<', $string_ref;
   return $in;
 }
 
 my $out;
 
-my $pipe = input_fh
+my $pipe = input_fh(\$source)
   | pmap { [ /^(\S+) (\S+) (.*)$/ ] }
   | pgrep { $_->[2] =~ /rejected|Completed/ }
   | pmap { [ @{$_}[0, 1], $_->[2] =~ /rejected/ ? 'Rejected' : 'Completed' ] }
