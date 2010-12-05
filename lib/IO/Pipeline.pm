@@ -9,7 +9,7 @@ use Exporter ();
 
 our @ISA = qw(Exporter);
 
-our @EXPORT = qw(pmap pgrep psink);
+our @EXPORT = qw(pmap pgrep ppool psink);
 
 our $VERSION = '0.009002'; # 0.9.2
 
@@ -22,6 +22,7 @@ sub import {
 
 sub pmap (&) { IO::Pipeline->from_code_map($_[0]) }
 sub pgrep (&) { IO::Pipeline->from_code_grep($_[0]) }
+sub ppool (&) { IO::Pipeline->from_code_pool($_[0]) }
 sub psink (&) { IO::Pipeline->from_code_sink($_[0]) }
 
 use overload
@@ -37,12 +38,37 @@ sub IO::Pipeline::CodeSink::print {
 }
 
 sub from_code_map {
-  bless({ map => [ $_[1] ] }, $_[0]);
+  my ($class, $map) = @_;
+  bless(
+    {
+      map => [
+        sub {
+          blessed($_) && $_->isa("IO::Pipeline::Control")
+            ? $_
+            : $map->($_)
+          }
+      ],
+    },
+    $class
+  );
 }
 
 sub from_code_grep {
   my ($class, $grep) = @_;
-  $class->from_code_map(sub { $grep->($_) ? ($_) : () });
+  $class->from_code_map(
+    sub {
+      if(blessed($_) && $_->isa("IO::Pipeline::Control")) {
+        $_;
+      }
+      else {
+        $grep->($_) ? ($_) : ()
+      }
+    }
+  );
+}
+
+sub from_code_pool {
+  bless({ map => [ $_[1] ] }, $_[0]);
 }
 
 sub from_code_sink {
@@ -79,11 +105,11 @@ sub _pipe_operator {
 sub run {
   my ($self) = @_;
   my $source = $self->{source};
-  my $sink = $self->{sink};
+  $self->process_line(IO::Pipeline::Control::BOF->new);
   LINE: while (defined(my $line = $source->getline)) {
-    my @lines = $self->process_line($line);
-    $sink->print(@lines) if(@lines);
+    $self->process_line($line);
   }
+  $self->process_line(IO::Pipeline::Control::EOF->new);
 }
 
 sub process_line {
@@ -91,11 +117,28 @@ sub process_line {
   my @lines = ($line);
   foreach my $map (@{$self->{map}}) {
     @lines = map $map->($_), @lines;
-    return () unless @lines;
+    return unless @lines;
   }
-
-  return @lines
+  @lines = grep { ! ( blessed($_) && $_->isa("IO::Pipeline::Control") ) } @lines;
+  $self->{sink}->print( @lines) if(@lines);
 }
+
+package IO::Pipeline::Control;
+
+sub new { bless({}, shift) }
+
+use overload
+        q{""} => sub { "" },
+  fallback => 1;
+
+
+package IO::Pipeline::Control::BOF;
+our @ISA = qw(IO::Pipeline::Control);
+
+
+package IO::Pipeline::Control::EOF;
+our @ISA = qw(IO::Pipeline::Control);
+
 
 =head1 NAME
 
