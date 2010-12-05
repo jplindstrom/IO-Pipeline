@@ -1,7 +1,10 @@
 use strict;
 use warnings FATAL => 'all';
-use IO::Pipeline;
 use Test::More qw(no_plan);
+
+use Scalar::Util qw(blessed);
+
+use IO::Pipeline;
 
 my $source = <<'END';
 abc
@@ -17,7 +20,8 @@ sub input_fh {
 
 my $out;
 my $pipe = input_fh
-  | pmap { $_ }
+  | pmap { blessed($_) and die( "Found control object\n" ); $_ }
+  | pgrep { blessed($_) and die( "Found control object\n" ); 1 }
   | psink { $out .= $_ };
 
 is($out, $source, 'No control objects in the output');
