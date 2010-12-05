@@ -22,7 +22,7 @@ sub import {
 
 sub pmap (&) { IO::Pipeline->from_code_map($_[0]) }
 sub pgrep (&) { IO::Pipeline->from_code_grep($_[0]) }
-sub ppool (&&&) { IO::Pipeline->from_code_pool(@_) }
+sub ppool     { IO::Pipeline->from_code_pool(@_) }
 sub psink (&) { IO::Pipeline->from_code_sink($_[0]) }
 
 use overload
@@ -72,7 +72,7 @@ sub from_code_pool {
   my $pool = sub {};
   my $post = sub {};
   @subs == 1 and ($pool) = @subs;
-  @subs == 2 and ($pre, $pool) = @subs[0..1];
+  @subs == 2 and ($pool, $post) = @subs[0..1];
   @subs == 3 and ($pre, $pool, $post) = @subs;
   
   bless({ map => [ sub {
