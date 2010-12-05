@@ -7,21 +7,22 @@ use Scalar::Util qw(blessed);
 use IO::Pipeline;
 
 # Regression test: make sure control objects don't interfere
-my $source = <<'END';
+my $source = q{
 abc
 xyz
 123
 def
 456
-END
+};
 
 sub input_fh {
-  open my $in, '<', \$source;
+  my ($string_ref) = @_;
+  open my $in, '<', $string_ref;
   return $in;
 }
 
 my $out;
-my $pipe = input_fh
+my $pipe = input_fh(\$source)
   | pmap  { blessed($_) and die( "Found control object\n" ); $_ }
   | pgrep { blessed($_) and die( "Found control object\n" ); 1 }
   | psink { blessed($_) and die( "Found control object\n" ); $out .= $_ };
@@ -29,8 +30,11 @@ my $pipe = input_fh
 is($out, $source, 'No control objects in the output');
 
 
-# ppool { }
+# ppool
+
 
 
 
 # psort
+
+
