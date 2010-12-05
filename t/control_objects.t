@@ -36,18 +36,11 @@ def
   my $out;
   my $pipe = input_fh(\$source)
     | pmap  { $_ }
-    | ppool {
-      if(IO::Pipeline->isa_control($_)) {
-        if($_->isa("IO::Pipeline::Control::EOF")) {
-          @pool = sort @pool;
-          return @pool;
-        }
-      }
-      else {
-        push(@pool,$_);
-        return ();
-      }
-    }
+    | ppool(
+        sub { },
+        sub { push(@pool,$_);     return ();    },
+        sub { @pool = sort @pool; return @pool; }
+      )
     | psink { $out .= $_ };
 
   my $sorted_source = join("\n", sort split(/\n/, $source)) . "\n";
