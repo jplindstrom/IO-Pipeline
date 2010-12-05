@@ -6,10 +6,12 @@ use Scalar::Util qw(blessed);
 
 use IO::Pipeline;
 
+# Regression test: make sure control objects don't interfere
 my $source = <<'END';
 abc
-def
+xyz
 123
+def
 456
 END
 
@@ -30,3 +32,5 @@ is($out, $source, 'No control objects in the output');
 # ppool { }
 
 
+
+# psort
