@@ -43,18 +43,13 @@ sub _isa_control {
 
 sub from_code_map {
   my ($class, $map) = @_;
-  bless(
-    {
-      map => [
-        sub {
-          $class->_isa_control($_)
-            ? $_
-            : $map->($_)
-          }
-      ],
-    },
-    $class
-  );
+  bless({ map => [
+    sub {
+      $class->_isa_control($_)
+        ? $_
+        : $map->($_)
+    } ],
+  }, $class );
 }
 
 sub from_code_grep {
