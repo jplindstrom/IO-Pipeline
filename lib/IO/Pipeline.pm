@@ -81,8 +81,8 @@ sub run {
   my $source = $self->{source};
   my $sink = $self->{sink};
   LINE: while (defined(my $line = $source->getline)) {
-    my @lines = $self->process_line($line) or next LINE;
-    $sink->print(@lines);
+    my @lines = $self->process_line($line);
+    $sink->print(@lines) if(@lines);
   }
 }
 
