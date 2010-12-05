@@ -26,6 +26,3 @@ is($out, $source, 'No control objects in the output');
 # ppool { }
 
 
-# pclean
-
-
