@@ -81,13 +81,20 @@ sub run {
   my $source = $self->{source};
   my $sink = $self->{sink};
   LINE: while (defined(my $line = $source->getline)) {
-    my @lines = ($line);
-    foreach my $map (@{$self->{map}}) {
-      @lines = map $map->($_), @lines;
-      next LINE unless @lines;
-    }
+    my @lines = $self->process_line($line) or next LINE;
     $sink->print(@lines);
   }
+}
+
+sub process_line {
+  my ($self, $line) = @_;
+  my @lines = ($line);
+  foreach my $map (@{$self->{map}}) {
+    @lines = map $map->($_), @lines;
+    return () unless @lines;
+  }
+
+  return @lines
 }
 
 =head1 NAME
