@@ -23,4 +23,9 @@ my $pipe = input_fh
 is($out, $source, 'No control objects in the output');
 
 
-# ppool
+# ppool { }
+
+
+# pclean
+
+
