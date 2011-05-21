@@ -194,6 +194,30 @@ will print:
   2010-03-21 16:28:51 Rejected
   2010-03-21 16:35:59 Rejected
 
+Using this pipeline (with an added ppool to reverse the output):
+
+  my @items;
+  $in
+    | pmap { [ /^(\S+) (\S+) (.*)$/ ] }
+    | pgrep { $_->[2] =~ /rejected|Completed/ }
+    | pmap { [ @{$_}[0, 1], $_->[2] =~ /rejected/ ? 'Rejected' : 'Completed' ] }
+    | pmap { join(' ', @$_)."\n" }
+    | ppool(
+          # receive every item, put it in the pool
+        sub { push(@items,$_); return (); },
+          # last, release the reversed pool back into stream
+        sub { @items = reverse @items; },
+      )
+    | psink { $out .= $_ };
+
+will print
+
+  2010-03-21 16:35:59 Rejected
+  2010-03-21 16:28:51 Rejected
+  2010-03-21 16:20:37 Completed
+  2010-03-21 16:17:29 Completed
+  2010-03-21 16:15:30 Completed
+
 =head1 DESCRIPTION
 
 IO::Pipeline was born of the idea that I really like writing map/grep type
@@ -210,12 +234,13 @@ So, this module was born.
 
   use IO::Pipeline;
 
-will export three functions - L</pmap>, L</pgrep> and L</psink>. The first
-two are the meat of the module, the last one is a means to test by sending
-results somewhere other than a filehandle (or to chain IO::Pipeline output
-on to ... well, anywhere else, really).
+will export four functions - L</pmap>, L</pgrep>, L</ppool> and
+L</psink>. The first three are the meat of the module, the last one is
+a means to test by sending results somewhere other than a filehandle
+(or to chain IO::Pipeline output on to ... well, anywhere else,
+really).
 
-pmap and pgrep both return pipeline objects (currently of class IO::Pipeline,
+pmap, pgrep and ppool all return pipeline objects (currently of class IO::Pipeline,
 but this is considered an implementation detail, not a feature - so please
 don't write code that relies on it) that provide an overloaded '|' operator.
 
@@ -310,6 +335,30 @@ is precisely equivalent to:
 
 but the pgrep form is rather clearer.
 
+
+=head2 ppool
+
+  my $pool = ppool(
+     sub { <return zero or more new lines based on $_> },
+     sub { return zero or more lines, after all lines are read }
+  );
+
+A pipeline part built with ppool has two parts.
+
+The first sub gets invoked for each line on the pipeline, just like
+pmap. It may return zero or more elements. It can also be used to
+collect values for the second stage.
+
+The second sub gets invoked after all input lines are exhausted. It
+may return zero or more elements, which will be added to the end of
+the pipeline.
+
+ppool is for when you need to collect many lines before sending them
+along in the pipeline, e.g. for sorting. Note that this will make the
+whole pipeline non-lazy by slurping in all lines into memory before
+releasing them back into the pipeline.
+
+
 =head2 psink
 
   my $output = '';
@@ -392,15 +441,29 @@ a variable so that we can examine the results:
 
     | psink { $out .= $_ };
 
+=head2 ppool
+
+Adding ppool to reverse the output
+
+  my @items;
+  ...
+  | ppool(
+       # receive every item, put it in the pool
+     sub { push(@items,$_); return (); },
+       # last, release the reversed pool back into stream
+     sub { @items = reverse @items; },
+
+Note how he first stage collects all lines, without releasing them
+into the pipeline by returning an empty list. When there is no more
+input the second stage returns the reversed list to the pipeline.
+
 =head1 AUTHOR
 
 Matt S. Trout (mst) <mst@shadowcat.co.uk>
 
 =head2 CONTRIBUTORS
 
-None as yet, though I'm sure that'll change as soon as people spot the
-giant gaping holes that inevitably exist in any software only used by
-the author so far.
+Johan Lindstrom <johanl@cpan.org>
 
 =head1 COPYRIGHT
 
